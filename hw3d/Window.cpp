@@ -122,5 +122,3 @@ LRESULT Window::HandleMsg( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam ) n
 
 	return DefWindowProc( hWnd, msg, wParam, lParam );
 }
-
-// Commit Test

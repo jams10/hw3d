@@ -17,27 +17,44 @@
 *	You should have received a copy of the GNU General Public License					  *
 *	along with The Chili Direct3D Engine.  If not, see <http://www.gnu.org/licenses/>.    *
 ******************************************************************************************/
-#include "Window.h"
+#include "ChiliException.h"
+#include <sstream>
 
-int CALLBACK WinMain(
-	HINSTANCE hInstance,
-	HINSTANCE hPrevInstance,
-	LPSTR     lpCmdLine,
-	int       nCmdShow )
+
+ChiliException::ChiliException(int line, const char* file) noexcept
+	:
+	line(line),
+	file(file)
+{}
+
+const char* ChiliException::what() const noexcept
 {
-	Window wnd( 800, 300,  L"Yeeeeeeeeeeeeeeeeeeeesssss" );
+	std::ostringstream oss;
+	oss << GetType() << std::endl
+		<< GetOriginString();
+	whatBuffer = oss.str();
+	return whatBuffer.c_str();
+}
 
-	MSG msg;
-	BOOL gResult;
-	while( (gResult = GetMessage( &msg, nullptr, 0, 0 )) > 0 )
-	{
-		TranslateMessage( &msg );
-		DispatchMessage( &msg );
-	}
-	if( gResult == -1 )
-	{
-		return -1;
-	}
+const char* ChiliException::GetType() const noexcept
+{
+	return "Chili Exception";
+}
 
-	return msg.wParam;
+int ChiliException::GetLine() const noexcept
+{
+	return line;
+}
+
+const std::string& ChiliException::GetFile() const noexcept
+{
+	return file;
+}
+
+std::string ChiliException::GetOriginString() const noexcept
+{
+	std::ostringstream oss;
+	oss << "[File] " << file << std::endl
+		<< "[Line] " << line;
+	return oss.str();
 }

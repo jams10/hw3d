@@ -17,27 +17,22 @@
 *	You should have received a copy of the GNU General Public License					  *
 *	along with The Chili Direct3D Engine.  If not, see <http://www.gnu.org/licenses/>.    *
 ******************************************************************************************/
-#include "Window.h"
+#pragma once
+#include <exception>
+#include <string>
 
-int CALLBACK WinMain(
-	HINSTANCE hInstance,
-	HINSTANCE hPrevInstance,
-	LPSTR     lpCmdLine,
-	int       nCmdShow )
+class ChiliException : public std::exception
 {
-	Window wnd( 800, 300,  L"Yeeeeeeeeeeeeeeeeeeeesssss" );
-
-	MSG msg;
-	BOOL gResult;
-	while( (gResult = GetMessage( &msg, nullptr, 0, 0 )) > 0 )
-	{
-		TranslateMessage( &msg );
-		DispatchMessage( &msg );
-	}
-	if( gResult == -1 )
-	{
-		return -1;
-	}
-
-	return msg.wParam;
-}
+public:
+	ChiliException(int line, const char* file) noexcept;
+	const char* what() const noexcept override;
+	virtual const char* GetType() const noexcept;
+	int GetLine() const noexcept;
+	const std::string& GetFile() const noexcept;
+	std::string GetOriginString() const noexcept;
+private:
+	int line;
+	std::string file;
+protected:
+	mutable std::string whatBuffer;
+};
