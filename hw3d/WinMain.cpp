@@ -25,19 +25,38 @@ int CALLBACK WinMain(
 	LPSTR     lpCmdLine,
 	int       nCmdShow )
 {
-	Window wnd( 800, 300,  L"Yeeeeeeeeeeeeeeeeeeeesssss" );
+	try
+	{
+		Window wnd(800, 300, L"Yeeeeeeeeeeeeeeeeeeeesssss");
 
-	MSG msg;
-	BOOL gResult;
-	while( (gResult = GetMessage( &msg, nullptr, 0, 0 )) > 0 )
-	{
-		TranslateMessage( &msg );
-		DispatchMessage( &msg );
+		MSG msg;
+		BOOL gResult;
+		while ((gResult = GetMessage(&msg, nullptr, 0, 0)) > 0)
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		if (gResult == -1)
+		{
+			return -1;
+		}
+		return msg.wParam;
 	}
-	if( gResult == -1 )
+	// chili exception
+	catch (const ChiliException& e)
 	{
+		MessageBoxA(nullptr, e.what(), e.GetType(), MB_OK | MB_ICONEXCLAMATION);
+	}
+	// standard exception
+	catch (const std::exception& e)
+	{
+		MessageBoxA(nullptr, e.what(), "Standard Exception", MB_OK | MB_ICONEXCLAMATION);
 		return -1;
 	}
-
-	return msg.wParam;
+	// any kind of exception which we don't know
+	catch (...)
+	{
+		MessageBoxA(nullptr, "No details available", "Unknown Exception", MB_OK | MB_ICONEXCLAMATION);
+	}
+	return -1;
 }
