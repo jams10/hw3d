@@ -132,6 +132,31 @@ LRESULT Window::HandleMsg( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam ) n
 	case WM_CLOSE:
 		PostQuitMessage( 0 );
 		return 0;
+	
+	// clear keystate when window loses focus to prevent input getting "stuck"
+	// 메시지 박스에 갇히는 것을 방지하기 위해 메시지 박스로 포커싱이 옮겨 갔을 때 
+	// 윈도우가 포커스를 잃어버렸을 때 키 상태를 클리어
+	case WM_KILLFOCUS:
+		kbd.ClearState();
+		break;
+
+	/* KEYBOARD MESSAGES */
+	case WM_KEYDOWN:
+	// alt 키를 받아오기 위해 syskedown 활용
+	case WM_SYSKEYDOWN:
+		if (!(lParam & 0x40000000) || kbd.AutorepeatIsEnabled()) // filter autorepeat
+		{
+			kbd.OnKeyPressed(static_cast<unsigned char>(wParam));
+		}
+		break;
+	case WM_KEYUP:
+	case WM_SYSKEYUP:
+		kbd.OnKeyReleased(static_cast<unsigned char>(wParam));
+		break;
+	case WM_CHAR:
+		kbd.OnChar(static_cast<unsigned char>(wParam));
+		break;
+	/* KEYBOARD MESSAGES */
 	}
 
 	return DefWindowProc( hWnd, msg, wParam, lParam );
