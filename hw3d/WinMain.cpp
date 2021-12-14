@@ -18,6 +18,7 @@
 *	along with The Chili Direct3D Engine.  If not, see <http://www.gnu.org/licenses/>.    *
 ******************************************************************************************/
 #include "Window.h"
+#include "App.h"
 
 int CALLBACK WinMain(
 	HINSTANCE hInstance,
@@ -27,20 +28,7 @@ int CALLBACK WinMain(
 {
 	try
 	{
-		Window wnd(800, 300, L"Yeeeeeeeeeeeeeeeeeeeesssss");
-
-		MSG msg;
-		BOOL gResult;
-		while ((gResult = GetMessage(&msg, nullptr, 0, 0)) > 0)
-		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
-		if (gResult == -1)
-		{
-			return -1;
-		}
-		return msg.wParam;
+		return App{}.Go();
 	}
 	// chili exception
 	catch (const ChiliException& e)
