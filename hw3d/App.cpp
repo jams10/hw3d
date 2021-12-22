@@ -2,7 +2,7 @@
 
 App::App()
 	:
-	wnd(800, 600, "The Donkey Fart Box")
+	wnd(800, 600, L"Window!")
 {}
 
 int App::Go()
@@ -33,5 +33,7 @@ int App::Go()
 
 void App::DoFrame()
 {
-
+	const float c = sin(timer.Peek()) / 2.f + 0.5f;
+	wnd.Gfx().ClearBuffer(c, c, 1.0f);
+	wnd.Gfx().EndFrame();
 }
