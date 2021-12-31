@@ -99,7 +99,7 @@ void Graphics::ClearBuffer(float red, float green, float blue) noexcept
 	pContext->ClearRenderTargetView(pTarget.Get(), color);
 }
 
-void Graphics::DrawTestTriangle()
+void Graphics::DrawTestTriangle( float angle )
 {
 	namespace wrl = Microsoft::WRL;
 	HRESULT hr;
@@ -131,7 +131,7 @@ void Graphics::DrawTestTriangle()
 		{ 0.0f,-0.8f, 255, 0, 0, 0 },
 	};
 
-	wrl::ComPtr<ID3D11Buffer> pVertexBuffer;
+	wrl::ComPtr<ID3D11Buffer> pVertexBuffer; // 리소스생성
 	D3D11_BUFFER_DESC bd = {};
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.Usage = D3D11_USAGE_DEFAULT;
@@ -159,7 +159,7 @@ void Graphics::DrawTestTriangle()
 		2,1,5,
 	};
 
-	wrl::ComPtr<ID3D11Buffer> pIndexBuffer;
+	wrl::ComPtr<ID3D11Buffer> pIndexBuffer; // 리소스생성
 	D3D11_BUFFER_DESC ibd = {};
 	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	ibd.Usage = D3D11_USAGE_DEFAULT;
@@ -175,6 +175,41 @@ void Graphics::DrawTestTriangle()
 
 	// 파이프라인에 index buffer 바인딩
 	pContext->IASetIndexBuffer(pIndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0u);
+
+	// transformation matrix를 위한 constant buffer 생성
+	struct ConstantBuffer
+	{
+		struct 
+		{
+			float element[4][4];
+		} transformation;
+	};
+
+	const ConstantBuffer cb =
+	{
+		{
+			(3.0f / 4.0f) * std::cos(angle),	std::sin(angle),	0.f,	0.f,
+			(3.0f / 4.0f) * -std::sin(angle),	std::cos(angle),	0.f,	0.f,
+			0.0f,								0.0f,				1.0f,	0.0f,
+			0.0f,								0.0f,				0.0f,	1.0f,
+		}
+	};
+	wrl::ComPtr<ID3D11Buffer> pConstantBuffer; // 리소스 생성
+	D3D11_BUFFER_DESC cbd;
+	cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbd.Usage = D3D11_USAGE_DYNAMIC;
+	cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cbd.MiscFlags = 0u;
+	cbd.ByteWidth = sizeof(cb);
+	cbd.StructureByteStride = 0u;
+
+	D3D11_SUBRESOURCE_DATA csd = {};
+	csd.pSysMem = &cb;
+	GFX_THROW_INFO(pDevice->CreateBuffer(&cbd, &csd, &pConstantBuffer));
+
+	// vertex shader에 constant buffer 바인딩
+	pContext->VSSetConstantBuffers(0u, 1, pConstantBuffer.GetAddressOf());
+
 
 	// pixel shader 생성
 	wrl::ComPtr<ID3D11PixelShader> pPixelShader;
