@@ -4,8 +4,10 @@
 #include "dxerr.h"
 #include <sstream>
 #include <d3dcompiler.h>
+#include <DirectXMath.h>
 
 namespace wrl = Microsoft::WRL;
+namespace dx = DirectX;
 
 #pragma comment(lib,"d3d11.lib")
 #pragma comment(lib, "D3DCompiler.lib") // 런타임에 쉐이더 컴파일 하기 위해 사용. 우리는 그냥 shader loading 함수를 가지는 d3dcompiler.h를 사용하기 위해 링크했음.
@@ -99,7 +101,7 @@ void Graphics::ClearBuffer(float red, float green, float blue) noexcept
 	pContext->ClearRenderTargetView(pTarget.Get(), color);
 }
 
-void Graphics::DrawTestTriangle( float angle )
+void Graphics::DrawTestTriangle( float angle, float x, float y )
 {
 	namespace wrl = Microsoft::WRL;
 	HRESULT hr;
@@ -179,19 +181,17 @@ void Graphics::DrawTestTriangle( float angle )
 	// transformation matrix를 위한 constant buffer 생성
 	struct ConstantBuffer
 	{
-		struct 
-		{
-			float element[4][4];
-		} transformation;
+		dx::XMMATRIX transform;
 	};
 
 	const ConstantBuffer cb =
 	{
 		{
-			(3.0f / 4.0f) * std::cos(angle),	std::sin(angle),	0.f,	0.f,
-			(3.0f / 4.0f) * -std::sin(angle),	std::cos(angle),	0.f,	0.f,
-			0.0f,								0.0f,				1.0f,	0.0f,
-			0.0f,								0.0f,				0.0f,	1.0f,
+			dx::XMMatrixTranspose(
+				dx::XMMatrixRotationZ(angle) *
+				dx::XMMatrixScaling(3.0f / 4.0f, 1.0f, 1.0f) *
+				dx::XMMatrixTranslation(x,y,0.f)
+			)
 		}
 	};
 	wrl::ComPtr<ID3D11Buffer> pConstantBuffer; // 리소스 생성
