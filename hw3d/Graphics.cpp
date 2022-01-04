@@ -70,10 +70,48 @@ Graphics::Graphics(HWND hWnd)
 		nullptr,
 		&pContext
 	));
-
+	// swapchain의 texture subresource에 대한 접근을 얻음.(back buffer)
 	wrl::ComPtr<ID3D11Resource> pBackBuffer;
 	GFX_THROW_INFO(pSwap->GetBuffer(0, __uuidof(ID3D11Resource), &pBackBuffer));
 	GFX_THROW_INFO(pDevice->CreateRenderTargetView(pBackBuffer.Get(), nullptr, &pTarget));
+
+	// depth stencil state 생성
+	D3D11_DEPTH_STENCIL_DESC dsDesc = {};
+	dsDesc.DepthEnable = TRUE;
+	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
+	wrl::ComPtr<ID3D11DepthStencilState> pDSState;
+	GFX_THROW_INFO(pDevice->CreateDepthStencilState(&dsDesc, &pDSState));
+
+	// depth state 바인딩
+	pContext->OMSetDepthStencilState(pDSState.Get(), 1u);
+
+	// depth stencil texture 생성
+	wrl::ComPtr<ID3D11Texture2D> pDepthStencil;
+	D3D11_TEXTURE2D_DESC descDepth = {};
+	descDepth.Width = 800u; // swapchain 쪽 크기와 맞춰줌.
+	descDepth.Height = 600u;
+	descDepth.MipLevels = 1u; // 밉맵 관련
+	descDepth.ArraySize = 1u; // 텍스쳐 배열 크기
+	descDepth.Format = DXGI_FORMAT_D32_FLOAT; // depth stencil texture의 각 값은 D32(Depth) FLOAT
+		// anti-aliasing 관련
+	descDepth.SampleDesc.Count = 1u;
+	descDepth.SampleDesc.Quality = 0u;
+	descDepth.Usage = D3D11_USAGE_DEFAULT;
+	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	GFX_THROW_INFO(pDevice->CreateTexture2D(&descDepth, nullptr, &pDepthStencil)); // resource data는 매 프레임마다 채워줄것이므로 nullptr
+
+	// 텍스쳐의 depth stencil view 생성
+	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
+	descDSV.Format = DXGI_FORMAT_D32_FLOAT;
+	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	descDSV.Texture2D.MipSlice = 0u;
+	GFX_THROW_INFO(pDevice->CreateDepthStencilView(
+		pDepthStencil.Get(), &descDSV, &pDSV
+	));
+
+	// depth stencil view를 OM(Output Merger)에 바인딩
+	pContext->OMSetRenderTargets(1u, pTarget.GetAddressOf(), pDSV.Get());
 }
 
 void Graphics::EndFrame()
@@ -99,9 +137,11 @@ void Graphics::ClearBuffer(float red, float green, float blue) noexcept
 {
 	const float color[] = { red,green,blue,1.0f };
 	pContext->ClearRenderTargetView(pTarget.Get(), color);
+	pContext->ClearDepthStencilView(pDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0u);
 }
 
-void Graphics::DrawTestTriangle( float angle, float x, float y )
+// 마우스로 도형 위치 깊이 조절하기 위해 z값으로 받아줌.
+void Graphics::DrawTestTriangle( float angle, float x, float z )
 {
 	namespace wrl = Microsoft::WRL;
 	HRESULT hr;
@@ -112,25 +152,20 @@ void Graphics::DrawTestTriangle( float angle, float x, float y )
 		{
 			float x;
 			float y;
+			float z;
 		}pos;
-		struct
-		{
-			// 색상 정보 추가
-			unsigned char r;
-			unsigned char g;
-			unsigned char b;
-			unsigned char a;
-		}color;
 	};
 	// vertex buffer 생성. (1개. 화면 중앙에 2d 삼각형)
 	const Vertex vertices[] =
 	{
-		{ 0.0f, 0.5f, 255, 0, 0, 0 },
-		{ 0.5f, -0.5f, 0, 255, 0, 0 },
-		{ -0.5f,-0.5f, 0, 0, 255, 0 },
-		{ -0.3f,0.3f, 0, 255, 0, 0 },
-		{ 0.3f,0.3f, 0, 0, 255, 0 },
-		{ 0.0f,-0.8f, 255, 0, 0, 0 },
+		{-1.0f, -1.0f, -1.0f},
+		{1.0f, -1.0f, -1.0f},
+		{-1.0f, 1.0f, -1.0f},
+		{1.0f, 1.0f, -1.0f	},
+		{-1.0f, -1.0f, 1.0f},
+		{1.0f, -1.0f, 1.0f	},
+		{-1.0f, 1.0f, 1.0f	},
+		{1.0f, 1.0f, 1.0f	},
 	};
 
 	wrl::ComPtr<ID3D11Buffer> pVertexBuffer; // 리소스생성
@@ -155,10 +190,12 @@ void Graphics::DrawTestTriangle( float angle, float x, float y )
 	// index buffer 생성
 	const unsigned short indices[] =
 	{
-		0,1,2,
-		0,2,3,
-		0,4,1,
-		2,1,5,
+		0,2,1, 1,2,3, // 표시(CW) 앞면
+		1,3,5, 5,3,7, // 표시(CW) 오른쪽면
+		2,6,3, 3,6,7, // 표시(CW) 윗면
+		4,5,7, 7,6,4, // 미표시(CCW) 뒷면
+		0,4,2, 2,4,6, // 미표시(CCW) 왼쪽면
+		0,1,4, 4,1,5  // 미표시(CCW) 아랫면
 	};
 
 	wrl::ComPtr<ID3D11Buffer> pIndexBuffer; // 리소스생성
@@ -189,8 +226,9 @@ void Graphics::DrawTestTriangle( float angle, float x, float y )
 		{
 			dx::XMMatrixTranspose(
 				dx::XMMatrixRotationZ(angle) *
-				dx::XMMatrixScaling(3.0f / 4.0f, 1.0f, 1.0f) *
-				dx::XMMatrixTranslation(x,y,0.f)
+				dx::XMMatrixRotationX(angle) *
+				dx::XMMatrixTranslation(x,0.0f,z + 4.0f) * // z값을 perspective의 near 값보다 크게 함.
+				dx::XMMatrixPerspectiveLH(1.0f, 3.0f / 4.0f, 0.5f, 10.f) // prerspective projection
 			)
 		}
 	};
@@ -210,6 +248,42 @@ void Graphics::DrawTestTriangle( float angle, float x, float y )
 	// vertex shader에 constant buffer 바인딩
 	pContext->VSSetConstantBuffers(0u, 1, pConstantBuffer.GetAddressOf());
 
+	// pixel shader가 들여다 볼 색상을 담은 구조체(Constance buffer 생성)
+	struct ConstantBuffer2
+	{
+		struct
+		{
+			float r;
+			float g;
+			float b;
+			float a;
+		}face_colors[6];
+	};
+	const ConstantBuffer2 cb2 =
+	{
+		{
+			{1.0f, 0.0f, 1.0f},
+			{1.0f, 0.0f, 0.0f},
+			{0.0f, 1.0f, 0.0f},
+			{1.0f, 0.0f, 1.0f},
+			{1.0f, 1.0f, 0.0f},
+			{0.0f, 1.0f, 1.0f},
+		}
+	};
+	wrl::ComPtr<ID3D11Buffer> pConstantBuffer2; // 리소스 생성
+	D3D11_BUFFER_DESC cbd2;
+	cbd2.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbd2.Usage = D3D11_USAGE_DEFAULT;
+	cbd2.CPUAccessFlags = 0u;
+	cbd2.MiscFlags = 0u;
+	cbd2.ByteWidth = sizeof(cb2);
+	cbd2.StructureByteStride = 0u;
+	D3D11_SUBRESOURCE_DATA csd2 = {};
+	csd2.pSysMem = &cb2;
+	GFX_THROW_INFO(pDevice->CreateBuffer(&cbd2, &csd2, &pConstantBuffer2));
+
+	// pixel shader에 constant buffer 묶기
+	pContext->PSSetConstantBuffers(0u, 1u, pConstantBuffer2.GetAddressOf());
 
 	// pixel shader 생성
 	wrl::ComPtr<ID3D11PixelShader> pPixelShader;
@@ -233,8 +307,8 @@ void Graphics::DrawTestTriangle( float angle, float x, float y )
 	const D3D11_INPUT_ELEMENT_DESC ied[] =
 	{
 		// Vertex 데이터 순서대로 구성. 이름은 쉐이더에 사용할 시맨틱과 맞춰줘야 함.
-		{"Position", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"Color", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 8u, D3D11_INPUT_PER_VERTEX_DATA, 0}, // 정점이 들고 있을 정보 색상 정보 추가
+		{"Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		//{"Color", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12u, D3D11_INPUT_PER_VERTEX_DATA, 0}, // 정점이 들고 있을 정보 색상 정보 추가
 	};
 	GFX_THROW_INFO(pDevice->CreateInputLayout(
 		ied, (UINT)std::size(ied),
@@ -245,9 +319,6 @@ void Graphics::DrawTestTriangle( float angle, float x, float y )
 
 	// vertex layout 바인딩
 	pContext->IASetInputLayout(pInputLayout.Get());
-
-	// pixel shader 출력을 그려줄 render target을 바인딩해줘야 함.
-	pContext->OMSetRenderTargets(1u, pTarget.GetAddressOf(), nullptr);
 
 	// triangle list로 primitive topology를 설정함.(세 정점의 모임)
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
