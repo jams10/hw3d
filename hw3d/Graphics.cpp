@@ -1,10 +1,11 @@
 
 #include "Graphics.h"
-#include "Graphics.h"
 #include "dxerr.h"
 #include <sstream>
 #include <d3dcompiler.h>
+#include <cmath>
 #include <DirectXMath.h>
+#include "GraphicsThrowMacros.h"
 
 namespace wrl = Microsoft::WRL;
 namespace dx = DirectX;
