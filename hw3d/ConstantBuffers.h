@@ -8,6 +8,7 @@ class ConstantBuffer : public Bindable
 public:
 	void Update(Graphics& gfx, const C& consts)
 	{
+		// 현재 scope에 InfoManger가 없을 경우 InfoManager를 가져옴.
 		INFOMAN(gfx);
 
 		D3D11_MAPPED_SUBRESOURCE msr;
