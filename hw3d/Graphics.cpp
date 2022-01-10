@@ -13,22 +13,6 @@ namespace dx = DirectX;
 #pragma comment(lib,"d3d11.lib")
 #pragma comment(lib, "D3DCompiler.lib") // 런타임에 쉐이더 컴파일 하기 위해 사용. 우리는 그냥 shader loading 함수를 가지는 d3dcompiler.h를 사용하기 위해 링크했음.
 
-#define GFX_EXCEPT_NOINFO(hr) Graphics::HrException( __LINE__,__FILE__,(hr) )
-// hrcall로 들어온 expression의 리턴 값이 failure 코드인지	 살펴보고 failure 코드이면 예외를 throw.
-#define GFX_THROW_NOINFO(hrcall) if( FAILED( hr = (hrcall) ) ) throw Graphics::HrException( __LINE__,__FILE__,hr )
-
-#ifndef NDEBUG
-#define GFX_EXCEPT(hr) Graphics::HrException( __LINE__,__FILE__,(hr),infoManager.GetMessages() )
-#define GFX_THROW_INFO(hrcall) infoManager.Set(); if( FAILED( hr = (hrcall) ) ) throw GFX_EXCEPT(hr)
-#define GFX_DEVICE_REMOVED_EXCEPT(hr) Graphics::DeviceRemovedException( __LINE__,__FILE__,(hr),infoManager.GetMessages() )
-#define GFX_THROW_INFO_ONLY(call) infoManager.Set(); (call); {auto v = infoManager.GetMessages(); if(!v.empty()) {throw Graphics::InfoException( __LINE__,__FILE__,v);}}
-#else
-#define GFX_EXCEPT(hr) Graphics::HrException( __LINE__,__FILE__,(hr) )
-#define GFX_THROW_INFO(hrcall) GFX_THROW_NOINFO(hrcall)
-#define GFX_DEVICE_REMOVED_EXCEPT(hr) Graphics::DeviceRemovedException( __LINE__,__FILE__,(hr) )
-#define GFX_THROW_INFO_ONLY(call) (call)
-#endif
-
 Graphics::Graphics(HWND hWnd)
 {
 	// 스왑 체인의 설정 정보를 담은 구조체
