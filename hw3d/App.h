@@ -6,9 +6,9 @@ class App
 {
 public:
 	App();
-	~App();
 	// master frame / message loop
 	int Go();
+	~App();
 private:
 	void DoFrame();
 private:
